@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../../repositories/auth_repository.dart';
 import '../../../shared/models/user_model.dart';
-import '../../../shared/models/mock_data.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated, onboarding }
 
@@ -18,12 +17,18 @@ class AuthState {
     this.error,
   });
 
-  AuthState copyWith({AuthStatus? status, UserModel? user, bool? isLoading, String? error}) {
+  AuthState copyWith({
+    AuthStatus? status,
+    UserModel? user,
+    bool? isLoading,
+    String? error,
+    bool clearError = false,
+  }) {
     return AuthState(
       status: status ?? this.status,
       user: user ?? this.user,
       isLoading: isLoading ?? this.isLoading,
-      error: error,
+      error: clearError ? null : error ?? this.error,
     );
   }
 }
@@ -32,59 +37,100 @@ class OnboardingData {
   String? degreeProgram;
   List<String> skills;
   List<String> interests;
-
   OnboardingData({this.degreeProgram, this.skills = const [], this.interests = const []});
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState()) {
-    _checkAuth();
+  AuthNotifier(this._repo) : super(const AuthState()) {
+    _init();
   }
 
+  final AuthRepository _repo;
   final OnboardingData onboardingData = OnboardingData();
 
-  Future<void> _checkAuth() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
-    final hasOnboarded = prefs.getBool('has_onboarded') ?? false;
-
-    if (isLoggedIn && hasOnboarded) {
-      state = state.copyWith(status: AuthStatus.authenticated, user: MockData.currentUser);
-    } else if (isLoggedIn) {
-      state = state.copyWith(status: AuthStatus.onboarding, user: MockData.currentUser);
+  Future<void> _init() async {
+    final userId = await _repo.getCurrentUserId();
+    if (userId == null) {
+      state = const AuthState(status: AuthStatus.unauthenticated);
+      return;
+    }
+    final hasOnboarded = await _repo.hasCompletedOnboarding();
+    if (!hasOnboarded) {
+      final user = await _repo.loadCurrentUser();
+      state = AuthState(status: AuthStatus.onboarding, user: user);
+      return;
+    }
+    final user = await _repo.loadCurrentUser();
+    if (user == null) {
+      state = const AuthState(status: AuthStatus.unauthenticated);
     } else {
-      state = state.copyWith(status: AuthStatus.unauthenticated);
+      state = AuthState(status: AuthStatus.authenticated, user: user);
     }
   }
 
   Future<void> signInWithEmail(String email, String password) async {
-    state = state.copyWith(isLoading: true, error: null);
-    await Future.delayed(const Duration(seconds: 1));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('is_logged_in', true);
-    await prefs.setBool('has_onboarded', true);
-    state = state.copyWith(status: AuthStatus.authenticated, user: MockData.currentUser, isLoading: false);
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final user = await _repo.signIn(email: email, password: password);
+      final hasOnboarded = await _repo.hasCompletedOnboarding();
+      state = AuthState(
+        status: hasOnboarded ? AuthStatus.authenticated : AuthStatus.onboarding,
+        user: user,
+      );
+    } on Exception catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString().replaceAll('Exception: ', ''),
+      );
+    }
   }
 
   Future<void> register(String name, String email, String password) async {
-    state = state.copyWith(isLoading: true, error: null);
-    await Future.delayed(const Duration(seconds: 1));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('is_logged_in', true);
-    state = state.copyWith(status: AuthStatus.onboarding, user: MockData.currentUser, isLoading: false);
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final user = await _repo.register(name: name, email: email, password: password);
+      state = AuthState(status: AuthStatus.onboarding, user: user);
+    } on Exception catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString().replaceAll('Exception: ', ''),
+      );
+    }
   }
 
   Future<void> completeOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('has_onboarded', true);
-    state = state.copyWith(status: AuthStatus.authenticated);
+    final user = state.user;
+    if (user == null) return;
+    await _repo.completeOnboarding(
+      userId: user.id,
+      degreeProgram: onboardingData.degreeProgram ?? '',
+      skills: onboardingData.skills,
+      interests: onboardingData.interests,
+    );
+    final updated = await _repo.loadCurrentUser();
+    state = AuthState(status: AuthStatus.authenticated, user: updated ?? user);
+  }
+
+  Future<void> sendPasswordReset(String email) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    // Local-only app — no email sending capability
+    state = state.copyWith(isLoading: false,
+        error: 'Password reset is not available in offline mode. '
+            'Please contact support.');
   }
 
   Future<void> signOut() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await _repo.signOut();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 }
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());
+// ── Providers ────────────────────────────────────────────────────────────────
+
+final authRepositoryProvider = Provider<AuthRepository>((ref) => AuthRepository());
+
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
+  (ref) => AuthNotifier(ref.read(authRepositoryProvider)),
+);
+
+final currentUserProvider = Provider<UserModel?>((ref) => ref.watch(authProvider).user);

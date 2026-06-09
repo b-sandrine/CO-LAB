@@ -11,7 +11,7 @@ class ClansScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final clans = ref.watch(clansProvider);
+    final clansAsync = ref.watch(userClansProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -24,18 +24,49 @@ class ClansScreen extends ConsumerWidget {
         children: [
           _buildSearch(),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
-              children: [
-                ...clans.map((c) => _ClanTile(clan: c)),
-                const SizedBox(height: 16),
-                Center(
-                  child: Text(
-                    'Join a team or RSVP to unlock more Clans',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-                  ),
-                ),
-              ],
+            child: clansAsync.when(
+              loading: () => const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary)),
+              error: (e, _) => Center(
+                child: Text('Error loading clans: $e',
+                    style: const TextStyle(color: AppColors.error)),
+              ),
+              data: (clans) => ListView(
+                padding: const EdgeInsets.fromLTRB(0, 8, 0, 100),
+                children: [
+                  if (clans.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.group_outlined,
+                                size: 48, color: Colors.grey.shade300),
+                            const SizedBox(height: 12),
+                            const Text('No clans yet',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 6),
+                            Text('Join a team or RSVP to unlock Clans',
+                                style: TextStyle(
+                                    color: Colors.grey.shade500, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    )
+                  else ...[
+                    ...clans.map((c) => _ClanTile(clan: c)),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Text(
+                        'Join a team or RSVP to unlock more Clans',
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.grey.shade400),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ],
@@ -76,9 +107,17 @@ class _ClanTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(clan.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(clan.name,
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 3),
-                  Text(clan.lastMessage, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    clan.lastMessage.isEmpty ? 'No messages yet' : clan.lastMessage,
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.textSecondary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
@@ -86,15 +125,29 @@ class _ClanTile extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(timeago.format(clan.lastMessageTime, allowFromNow: true), style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
+                Text(
+                  timeago.format(clan.lastMessageTime, allowFromNow: true),
+                  style: const TextStyle(fontSize: 11, color: AppColors.textHint),
+                ),
                 const SizedBox(height: 4),
                 if (clan.unreadCount > 0)
                   Container(
                     width: 20,
                     height: 20,
-                    decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                    child: Center(child: Text('${clan.unreadCount}', style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w700))),
-                  ),
+                    decoration: const BoxDecoration(
+                        color: AppColors.primary, shape: BoxShape.circle),
+                    child: Center(
+                      child: Text(
+                        '${clan.unreadCount}',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox(height: 20),
               ],
             ),
           ],
@@ -114,7 +167,9 @@ class _ClanAvatar extends StatelessWidget {
     return CircleAvatar(
       radius: 24,
       backgroundColor: color,
-      child: Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+      child: Text(initials,
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
     );
   }
 }

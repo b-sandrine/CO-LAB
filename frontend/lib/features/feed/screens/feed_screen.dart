@@ -18,8 +18,10 @@ class FeedScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final feed = ref.watch(feedProvider);
-    final user = ref.watch(authProvider).user;
+    final filteredAsync = ref.watch(filteredOpportunitiesProvider);
+    final selectedFilter = ref.watch(feedFilterProvider);
+    final user = ref.watch(currentUserProvider);
+    final registeredIds = ref.watch(userRegisteredIdsProvider).valueOrNull ?? {};
     final filters = ['All', 'Hackathon', 'Peer Study', 'Club Project'];
 
     return Scaffold(
@@ -28,22 +30,32 @@ class FeedScreen extends ConsumerWidget {
         child: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(child: _buildHeader(user?.firstName ?? 'there')),
-            SliverToBoxAdapter(child: _buildFilterRow(ref, feed.selectedFilter, filters)),
-            if (feed.filtered.isEmpty)
-              SliverFillRemaining(child: _buildEmpty(context))
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (ctx, i) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _OpportunityCard(opportunity: feed.filtered[i]),
-                    ),
-                    childCount: feed.filtered.length,
-                  ),
-                ),
+            SliverToBoxAdapter(child: _buildFilterRow(ref, selectedFilter, filters)),
+            filteredAsync.when(
+              loading: () => const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
               ),
+              error: (e, _) => SliverFillRemaining(
+                child: Center(child: Text('Error: $e', style: const TextStyle(color: AppColors.error))),
+              ),
+              data: (opps) => opps.isEmpty
+                  ? SliverFillRemaining(child: _buildEmpty())
+                  : SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (ctx, i) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _OpportunityCard(
+                              opportunity: opps[i],
+                              isRegistered: registeredIds.contains(opps[i].id),
+                            ),
+                          ),
+                          childCount: opps.length,
+                        ),
+                      ),
+                    ),
+            ),
           ],
         ),
       ),
@@ -56,7 +68,8 @@ class FeedScreen extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('${_greeting()}, $firstName 👋', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          Text('${_greeting()}, $firstName 👋',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           Stack(
             children: [
               const Icon(Icons.notifications_outlined, size: 26, color: AppColors.textPrimary),
@@ -88,7 +101,7 @@ class FeedScreen extends ConsumerWidget {
           final f = filters[i];
           final isSelected = f == selected;
           return GestureDetector(
-            onTap: () => ref.read(feedProvider.notifier).setFilter(f),
+            onTap: () => ref.read(feedFilterProvider.notifier).state = f,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -97,7 +110,11 @@ class FeedScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
               ),
-              child: Text(f, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: isSelected ? Colors.white : AppColors.textPrimary)),
+              child: Text(f,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: isSelected ? Colors.white : AppColors.textPrimary)),
             ),
           );
         },
@@ -105,18 +122,18 @@ class FeedScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmpty(BuildContext context) {
+  Widget _buildEmpty() {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.location_on_outlined, size: 56, color: Colors.grey.shade300),
           const SizedBox(height: 12),
-          const Text('No sessions found', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const Text('No sessions found',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
-          Text('Be an Entrepreneurial Leader — start one!', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
-          const SizedBox(height: 20),
-          ElevatedButton(onPressed: () {}, style: ElevatedButton.styleFrom(minimumSize: const Size(160, 44)), child: const Text('Create Session')),
+          Text('Be an Entrepreneurial Leader — start one!',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
         ],
       ),
     );
@@ -125,7 +142,8 @@ class FeedScreen extends ConsumerWidget {
 
 class _OpportunityCard extends ConsumerWidget {
   final OpportunityModel opportunity;
-  const _OpportunityCard({required this.opportunity});
+  final bool isRegistered;
+  const _OpportunityCard({required this.opportunity, this.isRegistered = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -134,7 +152,13 @@ class _OpportunityCard extends ConsumerWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border(left: BorderSide(color: _typeColor(opportunity.type), width: 4)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -149,9 +173,13 @@ class _OpportunityCard extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(opportunity.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                      Text(opportunity.title,
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 2),
-                      Text(opportunity.description, style: TextStyle(fontSize: 13, color: Colors.grey.shade600), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      Text(opportunity.description,
+                          style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
@@ -166,7 +194,7 @@ class _OpportunityCard extends ConsumerWidget {
             _buildDateRow(),
             if (opportunity.skillTags.isNotEmpty) ...[
               const SizedBox(height: 10),
-              Wrap(spacing: 6, children: opportunity.skillTags.map((s) => _SkillTag(s)).toList()),
+              Wrap(spacing: 6, children: opportunity.skillTags.map(_SkillTag.new).toList()),
             ],
             const SizedBox(height: 12),
             _buildJoinButton(ref),
@@ -177,12 +205,11 @@ class _OpportunityCard extends ConsumerWidget {
   }
 
   Widget _buildDateRow() {
-    if (opportunity.isDateRolling) {
-      return _DateChip(label: 'Rolling');
-    }
+    if (opportunity.isDateRolling) return const _DateChip(label: 'Rolling');
     if (opportunity.eventDate == null) return const SizedBox.shrink();
     final now = DateTime.now();
-    final isToday = opportunity.eventDate!.day == now.day && opportunity.eventDate!.month == now.month;
+    final isToday = opportunity.eventDate!.day == now.day &&
+        opportunity.eventDate!.month == now.month;
     final label = isToday
         ? 'Today · ${DateFormat.jm().format(opportunity.eventDate!)}'
         : DateFormat('EEE d MMM').format(opportunity.eventDate!);
@@ -190,28 +217,44 @@ class _OpportunityCard extends ConsumerWidget {
   }
 
   Widget _buildJoinButton(WidgetRef ref) {
-    final isRequested = opportunity.hasRequested;
-    if (isRequested) {
+    if (isRegistered) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 11),
-        decoration: BoxDecoration(color: AppColors.chipBackground, borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+            color: AppColors.chipBackground, borderRadius: BorderRadius.circular(10)),
         child: Center(
-          child: Text(opportunity.joinLabel, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey.shade500)),
+          child: Text('Registered ✓',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade500)),
         ),
       );
     }
-    final isTeal = opportunity.joinLabel == 'RSVP';
+
+    final isTeal = opportunity.type == 'Peer Study';
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: () => ref.read(feedProvider.notifier).requestJoin(opportunity.id),
+        onPressed: () async {
+          final actions = ref.read(feedActionsProvider);
+          if (actions == null) return;
+          try {
+            await actions.rsvp(opportunity.id);
+          } catch (e) {
+            // Error handled by provider
+          }
+        },
         style: ElevatedButton.styleFrom(
           backgroundColor: isTeal ? AppColors.teal : AppColors.primary,
           minimumSize: const Size(double.infinity, 44),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        child: Text(opportunity.joinLabel, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
+        child: Text(
+          opportunity.type == 'Peer Study' ? 'RSVP' : 'Request to Join',
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+        ),
       ),
     );
   }
@@ -229,13 +272,13 @@ class _OpportunityCard extends ConsumerWidget {
 class _Avatar extends StatelessWidget {
   final String initial;
   const _Avatar({required this.initial});
-
   @override
   Widget build(BuildContext context) {
     return CircleAvatar(
       radius: 20,
       backgroundColor: AppColors.chipBackground,
-      child: Text(initial, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+      child: Text(initial,
+          style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
     );
   }
 }
@@ -243,13 +286,13 @@ class _Avatar extends StatelessWidget {
 class _SkillTag extends StatelessWidget {
   final String label;
   const _SkillTag(this.label);
-
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(color: AppColors.tealLight, borderRadius: BorderRadius.circular(20)),
-      child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.teal)),
+      child: Text(label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.teal)),
     );
   }
 }
@@ -257,7 +300,6 @@ class _SkillTag extends StatelessWidget {
 class _DateChip extends StatelessWidget {
   final String label;
   const _DateChip({required this.label});
-
   @override
   Widget build(BuildContext context) {
     return Row(
