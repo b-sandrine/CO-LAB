@@ -26,8 +26,7 @@ class TeamsScreen extends ConsumerWidget {
             Row(
               children: [
                 const Text('Filter by skill',
-                    style:
-                        TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                 const Spacer(),
                 TextButton(
                   onPressed: () {
@@ -56,7 +55,7 @@ class TeamsScreen extends ConsumerWidget {
                       color: AppColors.tealLight,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                          color: AppColors.teal.withValues(alpha: 0.3)),
+                          color: AppColors.teal.withValues(alpha: 0.4)),
                     ),
                     child: Text(skill,
                         style: const TextStyle(
@@ -81,61 +80,94 @@ class TeamsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Open Teams'),
-        backgroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.tune,
-                color: searchQuery.isNotEmpty
-                    ? AppColors.primary
-                    : AppColors.textPrimary),
-            onPressed: () => _showFilterSheet(context, ref),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _buildSearch(ref),
-          Expanded(
-            child: filteredAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-              error: (e, _) => Center(
-                child: Text('Failed to load teams: $e',
-                    style: const TextStyle(color: AppColors.error)),
-              ),
-              data: (teams) => teams.isEmpty
-                  ? const Center(
-                      child: Text('No teams found',
-                          style: TextStyle(color: AppColors.textSecondary)))
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                      itemCount: teams.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (_, i) => _TeamCard(team: teams[i]),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Header ─────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 16, 0),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Open Teams',
+                      style: TextStyle(
+                          fontSize: 22, fontWeight: FontWeight.w800),
                     ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.tune,
+                      color: searchQuery.isNotEmpty
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
+                      size: 22,
+                    ),
+                    onPressed: () => _showFilterSheet(context, ref),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildSearch(WidgetRef ref) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: TextField(
-        onChanged: (v) => ref.read(teamSearchProvider.notifier).state = v,
-        decoration: const InputDecoration(
-          hintText: 'Search teams or skills...',
-          prefixIcon: Icon(Icons.search, size: 20),
-          contentPadding: EdgeInsets.symmetric(vertical: 10),
+            // ── Search ──────────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2F3F5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  onChanged: (v) =>
+                      ref.read(teamSearchProvider.notifier).state = v,
+                  decoration: const InputDecoration(
+                    hintText: 'Search teams or skills...',
+                    hintStyle: TextStyle(
+                        color: AppColors.textHint, fontSize: 14),
+                    prefixIcon:
+                        Icon(Icons.search, size: 20, color: AppColors.textHint),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 13),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── List ────────────────────────────────────────────────────────
+            Expanded(
+              child: filteredAsync.when(
+                loading: () => const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary)),
+                error: (e, _) => Center(
+                  child: Text('Failed to load teams: $e',
+                      style: const TextStyle(color: AppColors.error)),
+                ),
+                data: (teams) => teams.isEmpty
+                    ? const Center(
+                        child: Text('No teams found',
+                            style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 15)))
+                    : ListView.separated(
+                        padding:
+                            const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                        itemCount: teams.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 14),
+                        itemBuilder: (_, i) =>
+                            _TeamCard(team: teams[i]),
+                      ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
+// ── Team card ──────────────────────────────────────────────────────────────────
 
 class _TeamCard extends StatelessWidget {
   final TeamModel team;
@@ -150,42 +182,63 @@ class _TeamCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Name + description
             Text(team.name,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                style: const TextStyle(
+                    fontSize: 17, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text(team.shortDescription,
-                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            const SizedBox(height: 12),
-            _MemberAvatars(
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary)),
+            const SizedBox(height: 14),
+
+            // Member avatars
+            _MemberRow(
               initials: team.memberInitials,
               extra: team.memberCount > 3 ? team.memberCount - 3 : 0,
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: team.openRoles
-                  .take(2)
-                  .map((r) => _NeedChip(label: 'Need: ${r.title}'))
-                  .toList(),
-            ),
             const SizedBox(height: 12),
+
+            // Need chips
+            if (team.openRoles.isNotEmpty)
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: team.openRoles
+                    .take(2)
+                    .map((r) => _NeedChip(label: 'Need: ${r.title}'))
+                    .toList(),
+              ),
+            const SizedBox(height: 14),
+
+            // View Team button
             SizedBox(
               width: double.infinity,
+              height: 46,
               child: ElevatedButton(
                 onPressed: () => context.push('/teams/${team.id}'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.teal,
-                  minimumSize: const Size(double.infinity, 44),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: const Text('View Team',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                    style: TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w600)),
               ),
             ),
           ],
@@ -195,52 +248,44 @@ class _TeamCard extends StatelessWidget {
   }
 }
 
-class _MemberAvatars extends StatelessWidget {
+// ── Member row (avatars + "+N more" text) ─────────────────────────────────────
+
+class _MemberRow extends StatelessWidget {
   final List<String> initials;
   final int extra;
-  const _MemberAvatars({required this.initials, required this.extra});
+  const _MemberRow({required this.initials, required this.extra});
 
   @override
   Widget build(BuildContext context) {
     final shown = initials.take(3).toList();
-    return SizedBox(
-      height: 28,
-      width: shown.length * 20.0 + 28 + (extra > 0 ? 28.0 : 0),
-      child: Stack(
-        children: [
-          ...List.generate(
-            shown.length,
-            (i) => Positioned(
-              left: i * 20.0,
+    return Row(
+      children: [
+        ...shown.map((init) => Padding(
+              padding: const EdgeInsets.only(right: 6),
               child: CircleAvatar(
-                radius: 14,
-                backgroundColor: const Color(0xFFE0E0E0),
-                child: Text(shown[i],
+                radius: 15,
+                backgroundColor: const Color(0xFFE8E8E8),
+                child: Text(init,
                     style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary)),
               ),
-            ),
-          ),
-          if (extra > 0)
-            Positioned(
-              left: shown.length * 20.0,
-              child: CircleAvatar(
-                radius: 14,
-                backgroundColor: AppColors.chipBackground,
-                child: Text('+$extra',
-                    style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary)),
-              ),
-            ),
+            )),
+        if (extra > 0) ...[
+          const SizedBox(width: 2),
+          Text('+$extra more',
+              style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500)),
         ],
-      ),
+      ],
     );
   }
 }
+
+// ── Need chip ─────────────────────────────────────────────────────────────────
 
 class _NeedChip extends StatelessWidget {
   final String label;
@@ -249,15 +294,17 @@ class _NeedChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.tealLight,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.teal.withValues(alpha: 0.3)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.teal, width: 1.2),
       ),
       child: Text(label,
           style: const TextStyle(
-              fontSize: 12, color: AppColors.teal, fontWeight: FontWeight.w500)),
+              fontSize: 12,
+              color: AppColors.teal,
+              fontWeight: FontWeight.w500)),
     );
   }
 }
