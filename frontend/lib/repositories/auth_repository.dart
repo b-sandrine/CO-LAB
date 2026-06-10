@@ -1,11 +1,8 @@
-import 'package:shared_preferences/shared_preferences.dart';
 import '../shared/models/user_model.dart';
 import '../services/auth_service.dart';
 import '../core/database/database_service.dart';
 
 class AuthRepository {
-  static const _keyHasOnboarded = 'has_onboarded';
-
   Future<String?> getCurrentUserId() => AuthService.getCurrentUserId();
 
   Future<UserModel> register({
@@ -19,15 +16,21 @@ class AuthRepository {
 
   Future<void> signOut() async {
     await AuthService.signOut();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyHasOnboarded);
+    // onboardingCompleted lives in the DB — do NOT clear it here
   }
 
   Future<UserModel?> loadCurrentUser() => AuthService.loadCurrentUser();
 
   Future<bool> hasCompletedOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_keyHasOnboarded) ?? false;
+    final userId = await AuthService.getCurrentUserId();
+    if (userId == null) return false;
+    final db = await DatabaseService.instance.database;
+    final rows = await db.query('users',
+        columns: ['onboardingCompleted'],
+        where: 'id = ?',
+        whereArgs: [userId]);
+    if (rows.isEmpty) return false;
+    return (rows.first['onboardingCompleted'] as int? ?? 0) == 1;
   }
 
   Future<void> completeOnboarding({
@@ -43,11 +46,10 @@ class AuthRepository {
         'degreeProgram': degreeProgram,
         'skills': DatabaseService.encodeList(skills),
         'interests': DatabaseService.encodeList(interests),
+        'onboardingCompleted': 1,
       },
       where: 'id = ?',
       whereArgs: [userId],
     );
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyHasOnboarded, true);
   }
 }

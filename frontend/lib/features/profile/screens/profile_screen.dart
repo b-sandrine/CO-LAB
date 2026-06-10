@@ -23,7 +23,11 @@ class ProfileScreen extends ConsumerWidget {
         title: const Text('My Profile'),
         backgroundColor: Colors.white,
         actions: [
-          IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.manage_accounts_outlined),
+            tooltip: 'My Teams',
+            onPressed: () => context.push('/my-teams'),
+          ),
         ],
       ),
       body: profileAsync.when(
@@ -80,7 +84,7 @@ class ProfileScreen extends ConsumerWidget {
               ],
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: () => context.push('/edit-profile'),
                 icon: const Icon(Icons.edit_outlined, size: 16),
                 label: const Text('Edit Profile'),
                 style: OutlinedButton.styleFrom(

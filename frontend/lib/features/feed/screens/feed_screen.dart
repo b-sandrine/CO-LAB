@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/models/opportunity_model.dart';
 import '../providers/feed_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../notifications/providers/notification_provider.dart';
 
 class FeedScreen extends ConsumerWidget {
   const FeedScreen({super.key});
@@ -29,7 +31,7 @@ class FeedScreen extends ConsumerWidget {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(child: _buildHeader(user?.firstName ?? 'there')),
+            SliverToBoxAdapter(child: _buildHeader(context, ref, user?.firstName ?? 'there')),
             SliverToBoxAdapter(child: _buildFilterRow(ref, selectedFilter, filters)),
             filteredAsync.when(
               loading: () => const SliverFillRemaining(
@@ -62,7 +64,8 @@ class FeedScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(String firstName) {
+  Widget _buildHeader(BuildContext context, WidgetRef ref, String firstName) {
+    final unread = ref.watch(unreadNotificationCountProvider);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(
@@ -70,19 +73,24 @@ class FeedScreen extends ConsumerWidget {
         children: [
           Text('${_greeting()}, $firstName 👋',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-          Stack(
-            children: [
-              const Icon(Icons.notifications_outlined, size: 26, color: AppColors.textPrimary),
-              Positioned(
-                top: 0,
-                right: 0,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                ),
-              ),
-            ],
+          GestureDetector(
+            onTap: () => context.push('/notifications'),
+            child: Stack(
+              children: [
+                const Icon(Icons.notifications_outlined, size: 26, color: AppColors.textPrimary),
+                if (unread > 0)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                          color: AppColors.primary, shape: BoxShape.circle),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),

@@ -18,10 +18,18 @@ class DatabaseService {
     final path = join(dbPath, 'alu_colab.db');
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _create,
+      onUpgrade: _upgrade,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
     );
+  }
+
+  Future<void> _upgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+          'ALTER TABLE users ADD COLUMN onboardingCompleted INTEGER DEFAULT 0');
+    }
   }
 
   Future<void> _create(Database db, int version) async {
@@ -44,6 +52,7 @@ class DatabaseService {
         eventsHosted INTEGER DEFAULT 0,
         eventsAttended INTEGER DEFAULT 0,
         badges TEXT DEFAULT '[]',
+        onboardingCompleted INTEGER DEFAULT 0,
         createdAt INTEGER NOT NULL
       )
     ''');

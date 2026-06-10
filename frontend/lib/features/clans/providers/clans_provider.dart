@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../repositories/clan_repository.dart';
 import '../../../shared/models/clan_model.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/database/database_service.dart';
 
 // ── Repository ────────────────────────────────────────────────────────────────
 
@@ -14,6 +15,23 @@ final userClansProvider = StreamProvider<List<ClanModel>>((ref) {
   final userId = ref.watch(currentUserProvider)?.id;
   if (userId == null) return const Stream.empty();
   return ref.watch(clanRepositoryProvider).watchUserClans(userId);
+});
+
+// ── All clans (browse) ────────────────────────────────────────────────────────
+
+final allClansProvider = StreamProvider<List<ClanModel>>((ref) {
+  return ref.watch(clanRepositoryProvider).watchAllClans();
+});
+
+// ── Is the current user a member of a specific clan ───────────────────────────
+
+final isMemberOfClanProvider = FutureProvider.family<bool, String>((ref, clanId) async {
+  final userId = ref.watch(currentUserProvider)?.id;
+  if (userId == null) return false;
+  final db = await DatabaseService.instance.database;
+  final rows = await db.query('clan_members',
+      where: 'clanId = ? AND userId = ?', whereArgs: [clanId, userId]);
+  return rows.isNotEmpty;
 });
 
 // ── Messages for a specific clan (live stream) ────────────────────────────────
@@ -77,6 +95,26 @@ class ClanChatNotifier extends StateNotifier<AsyncValue<void>> {
     state = const AsyncLoading();
     try {
       await _repo.leaveClan(clanId: clanId, userId: userId);
+      state = const AsyncData(null);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    }
+  }
+
+  Future<void> createClan({
+    required String name,
+    required String description,
+    required String category,
+    required String ownerId,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      await _repo.createClan(
+        name: name,
+        description: description,
+        category: category,
+        ownerId: ownerId,
+      );
       state = const AsyncData(null);
     } catch (e, st) {
       state = AsyncError(e, st);

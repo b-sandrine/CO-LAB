@@ -10,9 +10,12 @@ import '../../features/shell/main_shell.dart';
 import '../../features/feed/screens/feed_screen.dart';
 import '../../features/teams/screens/teams_screen.dart';
 import '../../features/teams/screens/team_detail_screen.dart';
+import '../../features/teams/screens/team_owner_dashboard.dart';
 import '../../features/clans/screens/clans_screen.dart';
 import '../../features/clans/screens/clan_chat_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/profile/screens/edit_profile_screen.dart';
+import '../../features/notifications/screens/notifications_screen.dart';
 import '../../features/feed/screens/create_opportunity_screen.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
@@ -61,6 +64,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/create-opportunity',
         builder: (_, __) => const CreateOpportunityScreen(),
+      ),
+      GoRoute(
+        path: '/edit-profile',
+        builder: (_, __) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (_, __) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/my-teams',
+        builder: (_, __) => const TeamOwnerDashboard(),
       ),
 
       // Shell routes — wrapped with bottom nav bar

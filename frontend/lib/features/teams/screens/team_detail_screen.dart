@@ -68,9 +68,9 @@ class TeamDetailScreen extends ConsumerWidget {
                   color: Colors.white,
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
                   child: hasAppliedAsync.when(
-                    loading: () => ElevatedButton(
+                    loading: () => const ElevatedButton(
                       onPressed: null,
-                      child: const Text('Apply to Join'),
+                      child: Text('Apply to Join'),
                     ),
                     error: (_, __) => ElevatedButton(
                       onPressed: () => _showApplyModal(context, team, ref),

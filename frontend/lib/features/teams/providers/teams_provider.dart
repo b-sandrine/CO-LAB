@@ -44,6 +44,14 @@ final teamByIdProvider =
   return ref.read(teamRepositoryProvider).getById(id);
 });
 
+// ── Teams owned by the current user ──────────────────────────────────────────
+
+final myOwnedTeamsProvider = StreamProvider<List<TeamModel>>((ref) {
+  final userId = ref.watch(currentUserProvider)?.id;
+  if (userId == null) return const Stream.empty();
+  return ref.watch(teamRepositoryProvider).watchOwnedTeams(userId);
+});
+
 // ── Applications for a specific project ───────────────────────────────────────
 
 final projectApplicationsProvider =

@@ -33,6 +33,20 @@ class TeamRepository {
   Stream<List<TeamModel>> watchAll() =>
       Rx.merge([Stream.value(null), _ctrl.stream]).asyncMap((_) => _fetchAllOpen());
 
+  Stream<List<TeamModel>> watchOwnedTeams(String ownerId) =>
+      Rx.merge([Stream.value(null), _ctrl.stream]).asyncMap((_) async {
+        final db = await DatabaseService.instance.database;
+        final rows = await db.query('projects',
+            where: 'ownerId = ?', whereArgs: [ownerId], orderBy: 'createdAt DESC');
+        final teams = <TeamModel>[];
+        for (final row in rows) {
+          final id = row['id'] as String;
+          final members = await _fetchMembers(id);
+          teams.add(TeamModel.fromMap(row, id).copyWith(members: members));
+        }
+        return teams;
+      });
+
   Future<TeamModel?> getById(String id) async {
     final db = await DatabaseService.instance.database;
     final rows = await db.query('projects', where: 'id = ?', whereArgs: [id]);
