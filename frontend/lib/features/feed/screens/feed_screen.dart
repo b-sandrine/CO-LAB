@@ -41,7 +41,7 @@ class FeedScreen extends ConsumerWidget {
                 child: Center(child: Text('Error: $e', style: const TextStyle(color: AppColors.error))),
               ),
               data: (opps) => opps.isEmpty
-                  ? SliverFillRemaining(child: _buildEmpty())
+                  ? SliverFillRemaining(child: _buildEmpty(context))
                   : SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                       sliver: SliverList(
@@ -130,19 +130,56 @@ class FeedScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmpty() {
+  Widget _buildEmpty(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.location_on_outlined, size: 56, color: Colors.grey.shade300),
-          const SizedBox(height: 12),
-          const Text('No sessions found',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 6),
-          Text('Be an Entrepreneurial Leader — start one!',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.location_on_outlined,
+                  size: 44, color: Colors.grey.shade400),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'No sessions found',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Be an Entrepreneurial Leader — start one!',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () => context.push('/create-opportunity'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Create Session',
+                  style: TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -226,13 +263,16 @@ class _OpportunityCard extends ConsumerWidget {
 
   Widget _buildJoinButton(WidgetRef ref) {
     if (isRegistered) {
+      final label = opportunity.type == 'Peer Study' ? 'Registered ✓' : 'Requested ✓';
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 11),
+        padding: const EdgeInsets.symmetric(vertical: 13),
         decoration: BoxDecoration(
-            color: AppColors.chipBackground, borderRadius: BorderRadius.circular(10)),
+            color: AppColors.chipBackground,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.border)),
         child: Center(
-          child: Text('Registered ✓',
+          child: Text(label,
               style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
