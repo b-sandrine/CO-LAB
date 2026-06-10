@@ -51,5 +51,24 @@ class AuthRepository {
       where: 'id = ?',
       whereArgs: [userId],
     );
+
+    // Auto-join new users to the default clans so "My Clans" is pre-populated
+    final now = DateTime.now().millisecondsSinceEpoch;
+    const defaultClanIds = ['clan_tech', 'clan_design', 'clan_biz', 'clan_data'];
+    for (final clanId in defaultClanIds) {
+      final existing = await db.query('clan_members',
+          where: 'clanId = ? AND userId = ?', whereArgs: [clanId, userId]);
+      if (existing.isEmpty) {
+        await db.insert('clan_members', {
+          'id': '${clanId}_$userId',
+          'clanId': clanId,
+          'userId': userId,
+          'joinedAt': now,
+        });
+        await db.rawUpdate(
+            'UPDATE clans SET memberCount = memberCount + 1 WHERE id = ?',
+            [clanId]);
+      }
+    }
   }
 }
