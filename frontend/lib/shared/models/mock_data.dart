@@ -128,6 +128,7 @@ class MockData {
       lastMessageTime: now.subtract(const Duration(minutes: 2)),
       unreadCount: 3,
       memberCount: 6,
+      description: 'Meeting today at Hub 3 — 4:00 PM · Tap for directions',
       messages: [
         ClanMessage(
           id: 'msg1',

@@ -193,24 +193,54 @@ class _ClanChatScreenState extends ConsumerState<ClanChatScreen> {
   }
 
   Widget _buildMeetingBanner(ClanModel clan) {
-    if (clan.description == null || clan.description!.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Container(
-      color: AppColors.tealLight,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          const Icon(Icons.location_on_outlined, size: 16, color: AppColors.teal),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              clan.description!,
-              style: const TextStyle(
-                  fontSize: 13, color: AppColors.teal, fontWeight: FontWeight.w500),
+    final desc = clan.description;
+    if (desc == null || desc.isEmpty) return const SizedBox.shrink();
+
+    // Split "...text · Tap for directions" into two spans
+    const tapLabel = 'Tap for directions';
+    final hasTap = desc.contains(tapLabel);
+    final mainText = hasTap
+        ? desc.substring(0, desc.indexOf(tapLabel)).trimRight()
+        : desc;
+
+    return GestureDetector(
+      onTap: () {},
+      child: Container(
+        color: AppColors.tealLight,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            const Icon(Icons.location_on_outlined,
+                size: 16, color: AppColors.teal),
+            const SizedBox(width: 8),
+            Expanded(
+              child: hasTap
+                  ? RichText(
+                      text: TextSpan(
+                        style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.teal,
+                            fontWeight: FontWeight.w500),
+                        children: [
+                          TextSpan(text: '$mainText · '),
+                          const TextSpan(
+                            text: tapLabel,
+                            style: TextStyle(
+                                decoration: TextDecoration.underline),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Text(
+                      desc,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.teal,
+                          fontWeight: FontWeight.w500),
+                    ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -371,18 +401,25 @@ class _MessageBubble extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: message.isMe ? AppColors.primary : Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(16),
-                        topRight: const Radius.circular(16),
-                        bottomLeft:
-                            Radius.circular(message.isMe ? 16 : 4),
-                        bottomRight:
-                            Radius.circular(message.isMe ? 4 : 16),
-                      ),
+                      color: message.isMe
+                          ? AppColors.primary
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
                       border: message.isMe
                           ? null
-                          : Border.all(color: AppColors.border),
+                          : Border.all(
+                              color: AppColors.border,
+                              width: 1),
+                      boxShadow: message.isMe
+                          ? null
+                          : [
+                              BoxShadow(
+                                color: Colors.black
+                                    .withValues(alpha: 0.04),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
                     ),
                     child: Text(
                       message.content,
