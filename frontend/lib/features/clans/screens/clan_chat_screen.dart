@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../providers/clans_provider.dart';
@@ -54,7 +55,77 @@ class _ClanChatScreenState extends ConsumerState<ClanChatScreen> {
   @override
   Widget build(BuildContext context) {
     final clan = ref.watch(selectedClanProvider(widget.clanId));
+    final isMemberAsync = ref.watch(isMemberOfClanProvider(widget.clanId));
+    final currentUser = ref.watch(currentUserProvider);
     final messagesAsync = ref.watch(clanMessagesProvider(widget.clanId));
+
+    // Access control: non-members see a join prompt instead of the chat
+    final isMember = isMemberAsync.valueOrNull ?? false;
+    if (isMemberAsync.hasValue && !isMember) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          leading: BackButton(onPressed: () => context.pop()),
+          title: Text(clan?.name ?? ''),
+          backgroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  radius: 36,
+                  backgroundColor: clan != null ? Color(clan.color) : AppColors.primary,
+                  child: Text(clan?.initials ?? '?',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(height: 16),
+                Text(clan?.name ?? 'This Clan',
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Text(
+                  clan?.description ?? 'Join this clan to read and send messages.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                Text('${clan?.memberCount ?? 0} members',
+                    style: const TextStyle(color: AppColors.textHint)),
+                const SizedBox(height: 28),
+                ElevatedButton.icon(
+                  onPressed: currentUser == null
+                      ? null
+                      : () async {
+                          await ref
+                              .read(clanActionsProvider.notifier)
+                              .joinClan(
+                                  clanId: widget.clanId,
+                                  userId: currentUser.id);
+                          ref.invalidate(isMemberOfClanProvider(widget.clanId));
+                        },
+                  icon: const Icon(Icons.group_add_outlined),
+                  label: const Text('Join Clan'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.teal,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(200, 48),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     // Auto-scroll on new messages
     ref.listen(clanMessagesProvider(widget.clanId), (_, next) {
@@ -166,7 +237,21 @@ class _ClanChatScreenState extends ConsumerState<ClanChatScreen> {
           IconButton(
               icon: const Icon(Icons.attach_file_outlined,
                   color: AppColors.textSecondary),
-              onPressed: () {}),
+              onPressed: () async {
+                final picker = ImagePicker();
+                final picked =
+                    await picker.pickImage(source: ImageSource.gallery);
+                if (picked == null) return;
+                final user = ref.read(currentUserProvider);
+                if (user == null) return;
+                ref.read(clanActionsProvider.notifier).send(
+                      clanId: widget.clanId,
+                      senderId: user.id,
+                      senderName: user.firstName,
+                      content: '',
+                      imageUrl: picked.path,
+                    );
+              }),
           Expanded(
             child: TextField(
               controller: _msgCtrl,

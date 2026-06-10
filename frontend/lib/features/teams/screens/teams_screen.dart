@@ -8,16 +8,91 @@ import '../../../shared/models/team_model.dart';
 class TeamsScreen extends ConsumerWidget {
   const TeamsScreen({super.key});
 
+  void _showFilterSheet(BuildContext context, WidgetRef ref) {
+    const skillFilters = [
+      'Flutter', 'Python', 'UI Design', 'React', 'Data Analysis',
+      'Business', 'Marketing', 'Research', 'Finance',
+    ];
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('Filter by skill',
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                const Spacer(),
+                TextButton(
+                  onPressed: () {
+                    ref.read(teamSearchProvider.notifier).state = '';
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Clear',
+                      style: TextStyle(color: AppColors.primary)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: skillFilters.map((skill) {
+                return GestureDetector(
+                  onTap: () {
+                    ref.read(teamSearchProvider.notifier).state = skill;
+                    Navigator.pop(context);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.tealLight,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: AppColors.teal.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(skill,
+                        style: const TextStyle(
+                            color: AppColors.teal,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500)),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final filteredAsync = ref.watch(filteredTeamsProvider);
+    final searchQuery = ref.watch(teamSearchProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Open Teams'),
         backgroundColor: Colors.white,
-        actions: [IconButton(icon: const Icon(Icons.tune), onPressed: () {})],
+        actions: [
+          IconButton(
+            icon: Icon(Icons.tune,
+                color: searchQuery.isNotEmpty
+                    ? AppColors.primary
+                    : AppColors.textPrimary),
+            onPressed: () => _showFilterSheet(context, ref),
+          ),
+        ],
       ),
       body: Column(
         children: [

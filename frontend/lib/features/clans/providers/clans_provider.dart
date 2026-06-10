@@ -42,16 +42,19 @@ final clanMessagesProvider =
   return ref.watch(clanRepositoryProvider).watchMessages(clanId, userId);
 });
 
-// ── Single clan (from user's list or direct DB fetch) ─────────────────────────
+// ── Single clan — checks user's clans first, falls back to all clans ─────────
 
 final selectedClanProvider =
     Provider.family<ClanModel?, String>((ref, clanId) {
-  return ref.watch(userClansProvider).whenData((clans) {
-    try {
-      return clans.firstWhere((c) => c.id == clanId);
-    } catch (_) {
-      return null;
-    }
+  // Try joined clans first (fastest)
+  final fromJoined = ref.watch(userClansProvider).whenData((clans) {
+    try { return clans.firstWhere((c) => c.id == clanId); } catch (_) { return null; }
+  }).valueOrNull;
+  if (fromJoined != null) return fromJoined;
+
+  // Fall back to full list (covers non-member browsing)
+  return ref.watch(allClansProvider).whenData((clans) {
+    try { return clans.firstWhere((c) => c.id == clanId); } catch (_) { return null; }
   }).valueOrNull;
 });
 

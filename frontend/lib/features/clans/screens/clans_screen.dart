@@ -374,7 +374,9 @@ class _BrowseClanCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 10),
-          isMember
+          SizedBox(
+            width: 72,
+            child: isMember
               ? OutlinedButton(
                   onPressed: state.isLoading
                       ? null
@@ -390,7 +392,7 @@ class _BrowseClanCard extends ConsumerWidget {
                     foregroundColor: AppColors.error,
                     side: const BorderSide(color: AppColors.error),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
+                        horizontal: 8, vertical: 8),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),
@@ -412,12 +414,13 @@ class _BrowseClanCard extends ConsumerWidget {
                     backgroundColor: AppColors.teal,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
+                        horizontal: 8, vertical: 8),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),
                   child: const Text('Join', style: TextStyle(fontSize: 13)),
                 ),
+          ),
         ],
       ),
     );
