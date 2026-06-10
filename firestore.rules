@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isMember(clanId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/clan_members/$(clanId + '_' + request.auth.uid));
+    }
+
+    function isProjectMember(projectId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/project_members/$(projectId + '_' + request.auth.uid));
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+
+    match /users/{userId} {
+      // Any authenticated user can read profiles (for team/clan member display)
+      allow read: if isSignedIn();
+      // Only the user themselves can write to their profile
+      allow create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    // ── Opportunities ─────────────────────────────────────────────────────────
+
+    match /opportunities/{oppId} {
+      allow read: if isSignedIn();
+      // Any authenticated user can post an opportunity
+      allow create: if isSignedIn() && request.resource.data.postedById == request.auth.uid;
+      // Only the poster can update/delete
+      allow update, delete: if isSignedIn() &&
+        resource.data.postedById == request.auth.uid;
+    }
+
+    // ── Registrations (RSVP) ─────────────────────────────────────────────────
+
+    match /registrations/{regId} {
+      allow read: if isSignedIn() &&
+        (resource.data.userId == request.auth.uid ||
+         // Opportunity poster can read to see who joined
+         get(/databases/$(database)/documents/opportunities/$(resource.data.eventId)).data.postedById == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // ── Teams / Projects ──────────────────────────────────────────────────────
+
+    match /projects/{projectId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    match /project_members/{memberId} {
+      allow read: if isSignedIn();
+      // Owner of the project can add/remove members
+      allow write: if isSignedIn();
+    }
+
+    // ── Applications ─────────────────────────────────────────────────────────
+
+    match /applications/{appId} {
+      // Applicant or project owner can read
+      allow read: if isSignedIn() &&
+        (resource.data.applicantId == request.auth.uid || isProjectMember(resource.data.projectId));
+      // Only the applicant can create their own application
+      allow create: if isSignedIn() && request.resource.data.applicantId == request.auth.uid;
+      // Project owner can update status (approve/reject); applicant cannot modify after submit
+      allow update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    // ── Clans ─────────────────────────────────────────────────────────────────
+
+    match /clans/{clanId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      // Members (or creator) can update clan metadata
+      allow update: if isMember(clanId);
+      allow delete: if false;
+    }
+
+    match /clan_members/{memberId} {
+      allow read: if isSignedIn();
+      // Users can join/leave clans themselves
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() &&
+        resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ── Chat messages ─────────────────────────────────────────────────────────
+
+    match /chats/{clanId}/messages/{msgId} {
+      // Only clan members can read messages
+      allow read: if isMember(clanId);
+      // Only clan members can send messages
+      allow create: if isMember(clanId) &&
+        request.resource.data.senderId == request.auth.uid;
+      // Messages are immutable once sent
+      allow update, delete: if false;
+    }
+
+    // ── Notifications ─────────────────────────────────────────────────────────
+
+    match /notifications/{notifId} {
+      // Users can only see their own notifications
+      allow read: if isOwner(resource.data.userId);
+      // Only server-side (Cloud Functions) should create notifications,
+      // but allow client-side for now (mark-as-read update)
+      allow create: if isSignedIn();
+      // Users can mark their own notifications as read
+      allow update: if isOwner(resource.data.userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      allow delete: if isOwner(resource.data.userId);
+    }
+  }
+}
