@@ -49,22 +49,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final OnboardingData onboardingData = OnboardingData();
 
   Future<void> _init() async {
-    final userId = await _repo.getCurrentUserId();
-    if (userId == null) {
-      state = const AuthState(status: AuthStatus.unauthenticated);
-      return;
-    }
-    final hasOnboarded = await _repo.hasCompletedOnboarding();
-    if (!hasOnboarded) {
+    try {
+      final userId = await _repo.getCurrentUserId();
+      if (userId == null) {
+        state = const AuthState(status: AuthStatus.unauthenticated);
+        return;
+      }
+      final hasOnboarded = await _repo.hasCompletedOnboarding();
+      if (!hasOnboarded) {
+        final user = await _repo.loadCurrentUser();
+        state = AuthState(status: AuthStatus.onboarding, user: user);
+        return;
+      }
       final user = await _repo.loadCurrentUser();
-      state = AuthState(status: AuthStatus.onboarding, user: user);
-      return;
-    }
-    final user = await _repo.loadCurrentUser();
-    if (user == null) {
+      if (user == null) {
+        state = const AuthState(status: AuthStatus.unauthenticated);
+      } else {
+        state = AuthState(status: AuthStatus.authenticated, user: user);
+      }
+    } catch (_) {
+      // If anything fails during init (DB not ready, prefs unavailable, etc.)
+      // fall back to unauthenticated so the app is never stuck on a blank screen.
       state = const AuthState(status: AuthStatus.unauthenticated);
-    } else {
-      state = AuthState(status: AuthStatus.authenticated, user: user);
     }
   }
 

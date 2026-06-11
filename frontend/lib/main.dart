@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,12 +11,21 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // sqflite_common_ffi required on Windows and Linux desktops
-  if (Platform.isWindows || Platform.isLinux) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
+  // dart:io Platform is not available on web, so guard with kIsWeb
+  if (!kIsWeb) {
+    // ignore: do_not_use_environment
+    final isDesktop = defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux;
+    if (isDesktop) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
   }
 
-  await FcmService.initialize();
+  // flutter_local_notifications has no web/desktop implementation — swallow any failure
+  try {
+    await FcmService.initialize();
+  } catch (_) {}
 
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
